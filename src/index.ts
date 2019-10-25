@@ -13,6 +13,10 @@ import { readTsConfig } from './readTsConfig';
 import { logDiagnostics } from './logDiagnostic';
 import { loadTsLib } from './tslib';
 
+import Debug from 'debug';
+import { resolveModulePath } from './resolver';
+const debug = Debug('rpts:main');
+
 const TSLIB = 'tslib';
 const TSLIB_VIRTUAL = '\0tslib.js';
 
@@ -30,7 +34,7 @@ export interface RollupPluginTsOptions {
 }
 
 export default function rollupPluginTs(
-  pluginOptions: RollupPluginTsOptions,
+  pluginOptions: RollupPluginTsOptions = {},
 ): Plugin {
   const filter = createFilter(pluginOptions.include, pluginOptions.exclude);
   const cwd = pluginOptions.cwd || process.cwd();
@@ -44,10 +48,12 @@ export default function rollupPluginTs(
     name: 'rollup-plugin-ts',
 
     async buildStart(this: PluginContext): Promise<void> {
+      debug(`build start`);
+
       const cfg = readTsConfig(this, { cwd, ...pluginOptions.tsconfig });
       config = cfg.config;
 
-      languageServiceHost = new LanguageServiceHost(config);
+      languageServiceHost = new LanguageServiceHost(config, cwd);
       languageService = ts.createLanguageService(
         languageServiceHost,
         ts.createDocumentRegistry(),
@@ -57,6 +63,8 @@ export default function rollupPluginTs(
     },
 
     async load(id: string): Promise<SourceDescription | string | null> {
+      debug(`load ${id}`);
+
       if (id === TSLIB_VIRTUAL) {
         return tslibSource;
       }
@@ -68,6 +76,8 @@ export default function rollupPluginTs(
       importee: string,
       importer: string | undefined,
     ): Promise<ResolveIdResult> {
+      debug(`resolveId '${importee}' (from '${importer}')`);
+
       if (importee === TSLIB) {
         return TSLIB_VIRTUAL;
       }
@@ -81,7 +91,11 @@ export default function rollupPluginTs(
         return;
       }
 
-      const resolveResult = lookupModule(importee, importer, config.options);
+      const resolveResult = resolveModulePath(
+        importee,
+        importer,
+        config.options,
+      );
 
       if (resolveResult && !resolveResult.endsWith('.d.ts')) {
         return resolveResult;
@@ -93,14 +107,18 @@ export default function rollupPluginTs(
       code: string,
       id: string,
     ): Promise<TransformResult> {
+      debug(`transform ${id}`);
+
       if (!filter(id)) {
         return;
       }
 
-      languageServiceHost.setScriptSnapshot(id, code);
+      const fileInfo = languageServiceHost.setScriptSnapshot(id, code);
 
-      const preproc = ts.preProcessFile(code, true, true);
-      const diagnostics = languageService.getSyntacticDiagnostics(id);
+      const diagnostics = [
+        ...languageService.getSyntacticDiagnostics(id),
+        ...languageService.getSemanticDiagnostics(id),
+      ];
       logDiagnostics(this, diagnostics);
 
       const emit = languageService.getEmitOutput(id);
@@ -142,7 +160,7 @@ export default function rollupPluginTs(
         throw new Error(`no source emitted`);
       }
 
-      for (const dep of getDependencies(preproc, id, config.options)) {
+      for (const dep of fileInfo.references) {
         this.addWatchFile(dep);
       }
 
@@ -152,24 +170,4 @@ export default function rollupPluginTs(
       };
     },
   };
-}
-
-function getDependencies(
-  info: ts.PreProcessedFileInfo,
-  filePath: string,
-  options: ts.CompilerOptions,
-): string[] {
-  return info.importedFiles
-    .concat(info.referencedFiles)
-    .map(x => lookupModule(x.fileName, filePath, options))
-    .filter(Boolean) as string[];
-}
-
-function lookupModule(
-  moduleName: string,
-  file: string,
-  options: ts.CompilerOptions,
-): string | undefined {
-  const result = ts.nodeModuleNameResolver(moduleName, file, options, ts.sys);
-  return result.resolvedModule && result.resolvedModule.resolvedFileName;
 }

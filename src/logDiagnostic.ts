@@ -5,24 +5,38 @@ export function logDiagnostics(
   ctx: PluginContext,
   diagnostics: Diagnostic[],
 ): void {
-  for (const d of diagnostics) {
-    logDiagnostic(ctx, d);
+  const err = diagnostics.reduce(
+    (a, d) => a || logDiagnostic(ctx, d, true),
+    false,
+  );
+  if (err) {
+    ctx.error({ message: 'stopping due to errors', stack: '', frame: '' });
   }
 }
 
-export function logDiagnostic(ctx: PluginContext, d: Diagnostic): void {
+export function logDiagnostic(
+  ctx: PluginContext,
+  d: Diagnostic,
+  noError = false,
+): boolean {
   const message = `TS${d.code} - ${d.messageText}`;
   const output = { message, ...getLocation(d) };
 
-  switch (d.category) {
-    case DiagnosticCategory.Error:
-      ctx.error(output);
-      break;
+  if (noError) {
+    ctx.warn(output);
+  } else {
+    switch (d.category) {
+      case DiagnosticCategory.Error:
+        ctx.error(output);
+        break;
 
-    default:
-      ctx.warn(output);
-      break;
+      default:
+        ctx.warn(output);
+        break;
+    }
   }
+
+  return d.category === DiagnosticCategory.Error;
 }
 
 export interface ErrorLocationInfo {

@@ -4,6 +4,9 @@ import merge from 'lodash.merge';
 import { PluginContext } from 'rollup';
 import { logDiagnostic, logDiagnostics } from './logDiagnostic';
 
+import Debug from 'debug';
+const debug = Debug('rpts:config');
+
 export interface TsConfigOptions {
   cwd?: string;
   fileName?: string;
@@ -53,7 +56,13 @@ export function readTsConfig(
     loadedConfig = mergeConfig(loadedConfig, configJsonResult.config);
   }
 
-  loadedConfig = mergeConfig(loadedConfig, overrides);
+  loadedConfig = mergeConfig(loadedConfig, overrides, {
+    compilerOptions: {
+      //importHelpers: true,
+      moduleResolution: 'node',
+    },
+  });
+
   const parsedConfig = ts.parseJsonConfigFileContent(
     loadedConfig,
     ts.sys,
@@ -65,6 +74,8 @@ export function readTsConfig(
   if (parsedConfig.errors && parsedConfig.errors.length) {
     logDiagnostics(ctx, parsedConfig.errors);
   }
+
+  debug(`tsconfig`, parsedConfig);
 
   return {
     config: parsedConfig,
