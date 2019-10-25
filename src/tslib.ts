@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 
-export function loadTsLib() {
+export function loadTsLib(): string {
   const pkg = JSON.parse(fs.readFileSync(findPackageJson('tslib'), 'utf8'));
 
   if (!pkg.module) {
@@ -11,7 +11,7 @@ export function loadTsLib() {
   return fs.readFileSync(modulePath, 'utf8');
 }
 
-function findPackageJson(name: string) {
+function findPackageJson(name: string): string {
   const start = path.dirname(require.resolve(name));
 
   for (

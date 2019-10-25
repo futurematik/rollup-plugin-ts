@@ -17,9 +17,15 @@
   },
   "scripts": {
     "build": "yarn clean && yarn lint && yarn compile",
+    "bumpfeat": "npm version minor && npm publish",
+    "bumpfix": "npm version patch && npm publish",
+    "bumpmajor": "npm version major && npm publish",
     "clean": "rm -rf lib/ dist/",
     "compile": "tsc",
     "lint": "eslint src/ --ext=ts,tsx",
+    "postversion": "git push --follow-tags",
+    "prepare": "npm run build",
+    "preversion": "npm run build",
     "watch:compile": "rollup -c -w"
   },
   "dependencies": {
