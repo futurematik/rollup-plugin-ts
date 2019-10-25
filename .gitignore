@@ -1,0 +1,13 @@
+node_modules/
+*.log
+dist/
+build/
+.local/
+lib/
+*.generated.*
+tsconfig.build.json
+*.tsbuildinfo
+.DS_Store
+cdk.out/
+cdk-dev-context.json
+*.local

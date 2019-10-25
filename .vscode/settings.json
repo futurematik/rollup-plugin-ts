@@ -1,0 +1,6 @@
+{
+  "eslint.workingDirectories": [
+    { "directory": "packages/rollup-plugin-ts", "changeProcessCWD": true },
+    { "directory": "packages/test-package", "changeProcessCWD": true }
+  ]
+}
