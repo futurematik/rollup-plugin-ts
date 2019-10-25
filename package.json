@@ -1,8 +1,7 @@
 {
   "name": "@fmtk/rollup-plugin-ts",
   "version": "0.1.0",
-  "main": "lib/bundle.js",
-  "module": "lib/bundle.esm.js",
+  "main": "lib/index.js",
   "types": "lib/index.d.ts",
   "author": "Gordon Leigh <gordon.leigh@futurematik.co.uk>",
   "repository": {
