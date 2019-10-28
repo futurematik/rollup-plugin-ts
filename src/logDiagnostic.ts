@@ -43,6 +43,7 @@ export interface ErrorLocationInfo {
   frame?: string;
   loc?: {
     column: number;
+    file: string;
     line: number;
   };
   stack?: string;
@@ -87,12 +88,13 @@ export function getLocation(d: Diagnostic): ErrorLocationInfo {
 
       return `${lineNum}: ${tabsToSpaces(str)}`;
     })
+    //.concat(`// at ${d.file.fileName}:${line}:${column + 1}`)
     .join('\n');
 
   return {
     frame,
-    loc: { line, column },
-    stack: `at ${d.file.fileName}:${line}:${column + 1}`,
+    loc: { line, file: d.file.fileName, column },
+    stack: ``,
   };
 }
 

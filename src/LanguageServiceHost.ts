@@ -1,23 +1,16 @@
 import * as ts from 'typescript';
-import {
-  createSnapshotService,
-  SnapshotService,
-  FileInfo,
-} from './SnapshotService';
+import { SnapshotService, FileInfo } from './SnapshotService';
 
 import Debug from 'debug';
 import { resolveModule } from './resolver';
 const debug = Debug('rpts:host');
 
 export class LanguageServiceHost implements ts.LanguageServiceHost {
-  private readonly snapshots: SnapshotService;
-
   constructor(
+    private readonly snapshots: SnapshotService,
     private readonly config: ts.ParsedCommandLine,
     private readonly cwd = process.cwd(),
-  ) {
-    this.snapshots = createSnapshotService(config);
-  }
+  ) {}
 
   getCompilationSettings(): ts.CompilerOptions {
     debug(`getCompilationSettings`);

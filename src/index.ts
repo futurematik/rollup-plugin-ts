@@ -1,4 +1,7 @@
+import fs from 'fs';
 import path from 'path';
+import { promisify } from 'util';
+import _mkdirp from 'mkdirp';
 import {
   Plugin,
   TransformResult,
@@ -6,16 +9,22 @@ import {
   ResolveIdResult,
   SourceDescription,
 } from 'rollup';
-import { createFilter } from 'rollup-pluginutils';
 import * as ts from 'typescript';
 import { LanguageServiceHost } from './LanguageServiceHost';
 import { readTsConfig } from './readTsConfig';
-import { logDiagnostics } from './logDiagnostic';
 import { loadTsLib } from './tslib';
+import { EmitService, createEmitService } from './EmitService';
+
+import { resolveModulePath } from './resolver';
+import { createSnapshotService, SnapshotService } from './SnapshotService';
 
 import Debug from 'debug';
-import { resolveModulePath } from './resolver';
+
+const mkdirp = promisify(_mkdirp);
+const writeFile = promisify(fs.writeFile);
 const debug = Debug('rpts:main');
+const traceInput = Debug('rpts-trace:input');
+const traceOutput = Debug('rpts-trace:output');
 
 const TSLIB = 'tslib';
 const TSLIB_VIRTUAL = '\0tslib.js';
@@ -24,8 +33,6 @@ export type FileFilter = string | RegExp | (string | RegExp)[];
 
 export interface RollupPluginTsOptions {
   cwd?: string;
-  exclude?: FileFilter | null;
-  include?: FileFilter | null;
   tsconfig?: {
     fileName?: string;
     defaults?: {};
@@ -36,13 +43,15 @@ export interface RollupPluginTsOptions {
 export default function rollupPluginTs(
   pluginOptions: RollupPluginTsOptions = {},
 ): Plugin {
-  const filter = createFilter(pluginOptions.include, pluginOptions.exclude);
   const cwd = pluginOptions.cwd || process.cwd();
 
   let config: ts.ParsedCommandLine;
+  let snapshotService: SnapshotService;
   let languageServiceHost: LanguageServiceHost;
   let languageService: ts.LanguageService;
+  let emitService: EmitService;
   let tslibSource: string;
+  const filter = (id: string) => config.fileNames.includes(id);
 
   return {
     name: 'rollup-plugin-ts',
@@ -53,10 +62,20 @@ export default function rollupPluginTs(
       const cfg = readTsConfig(this, { cwd, ...pluginOptions.tsconfig });
       config = cfg.config;
 
-      languageServiceHost = new LanguageServiceHost(config, cwd);
+      snapshotService = createSnapshotService(config);
+      languageServiceHost = new LanguageServiceHost(
+        snapshotService,
+        config,
+        cwd,
+      );
       languageService = ts.createLanguageService(
         languageServiceHost,
         ts.createDocumentRegistry(),
+      );
+      emitService = createEmitService(
+        languageService,
+        snapshotService,
+        config.options,
       );
 
       tslibSource = loadTsLib();
@@ -113,61 +132,34 @@ export default function rollupPluginTs(
         return;
       }
 
-      const fileInfo = languageServiceHost.setScriptSnapshot(id, code);
+      const { watch, ...emit } = emitService.getEmit(this, id, code);
 
-      const diagnostics = [
-        ...languageService.getSyntacticDiagnostics(id),
-        ...languageService.getSemanticDiagnostics(id),
-      ];
-      logDiagnostics(this, diagnostics);
-
-      const emit = languageService.getEmitOutput(id);
-
-      if (emit.emitSkipped) {
-        throw new Error(`emit failed for file ${id}`);
-      }
-
-      let map: string | undefined;
-      let out: string | undefined;
-
-      for (const file of emit.outputFiles) {
-        if (file.name.endsWith('.d.ts')) {
-          this.emitFile({
-            fileName: path.basename(file.name),
-            type: 'asset',
-            source: file.text,
-          });
-        } else if (file.name.endsWith('.d.ts.map')) {
-          this.emitFile({
-            fileName: path.basename(file.name),
-            type: 'asset',
-            source: file.text,
-          });
-        } else if (file.name.endsWith('.map')) {
-          if (map) {
-            throw new Error(`emit has more than one map file`);
-          }
-          map = file.text;
-        } else {
-          if (out) {
-            throw new Error(`emit has more than one output file`);
-          }
-          out = file.text;
-        }
-      }
-
-      if (!out || !map) {
-        throw new Error(`no source emitted`);
-      }
-
-      for (const dep of fileInfo.references) {
+      for (const dep of watch) {
         this.addWatchFile(dep);
       }
 
-      return {
-        code: out,
-        map,
-      };
+      traceInput(code);
+      traceOutput(emit.code);
+
+      return emit;
+    },
+
+    async generateBundle(this: PluginContext): Promise<void> {
+      const extraFiles: [string, string][] = [];
+
+      if (config.options.declaration) {
+        extraFiles.push(...emitService.getAllDeclarations());
+
+        if (config.options.declarationMap) {
+          extraFiles.push(...emitService.getAllDeclarationMaps());
+        }
+      }
+
+      for (const [outpath, output] of extraFiles) {
+        const outDir = path.dirname(outpath);
+        await mkdirp(outDir);
+        await writeFile(outpath, output);
+      }
     },
   };
 }

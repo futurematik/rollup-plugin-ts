@@ -1,17 +1,16 @@
 import ts from 'typescript';
 
 import Debug from 'debug';
-import { getDependencies } from './resolver';
 const debug = Debug('rpts:snapshot');
 
 export interface FileInfo {
-  references: string[];
+  //dependencies: Dependencies;
   snapshot: ts.IScriptSnapshot;
   version: number;
 }
 
 export interface SnapshotService {
-  addFile(file: string, contents: string): FileInfo;
+  addFile(file: string, contents?: string): FileInfo;
   getFile(file: string): FileInfo;
   getFileNames(): string[];
 }
@@ -91,12 +90,11 @@ export function createSnapshotService(
       }
     }
     return {
-      references: getDependencies(
-        ts.preProcessFile(contents, true, true),
-        file,
-        config.options,
-        true,
-      ),
+      // dependencies: getDependencies(
+      //   ts.preProcessFile(contents, true, true),
+      //   file,
+      //   config.options,
+      // ),
       snapshot,
       version: current ? current.version + 1 : 1,
     };
@@ -115,9 +113,6 @@ export function createSnapshotService(
     if (added !== current) {
       if (current) {
         current.snapshot.dispose && current.snapshot.dispose();
-      }
-      for (const dep of added.references) {
-        addFile(dep);
       }
     }
 
