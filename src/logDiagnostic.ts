@@ -1,10 +1,10 @@
 import path from 'path';
 import { PluginContext } from 'rollup';
-import { Diagnostic, DiagnosticCategory } from 'typescript';
+import * as ts from 'typescript';
 
 export function logDiagnostics(
   ctx: PluginContext,
-  diagnostics: Diagnostic[],
+  diagnostics: ts.Diagnostic[],
 ): void {
   const err = diagnostics.reduce(
     (a, d) => a || logDiagnostic(ctx, d, true),
@@ -17,17 +17,18 @@ export function logDiagnostics(
 
 export function logDiagnostic(
   ctx: PluginContext,
-  d: Diagnostic,
+  d: ts.Diagnostic,
   noError = false,
 ): boolean {
-  const message = `TS${d.code} - ${d.messageText}`;
+  const flatMessage = ts.flattenDiagnosticMessageText(d.messageText, '\n');
+  const message = `TS${d.code} - ${flatMessage}`;
   const output = { message, ...getLocation(d) };
 
   if (noError) {
     ctx.warn(output);
   } else {
     switch (d.category) {
-      case DiagnosticCategory.Error:
+      case ts.DiagnosticCategory.Error:
         ctx.error(output);
         break;
 
@@ -37,7 +38,7 @@ export function logDiagnostic(
     }
   }
 
-  return d.category === DiagnosticCategory.Error;
+  return d.category === ts.DiagnosticCategory.Error;
 }
 
 export interface ErrorLocationInfo {
@@ -50,7 +51,7 @@ export interface ErrorLocationInfo {
   stack?: string;
 }
 
-export function getLocation(d: Diagnostic): ErrorLocationInfo {
+export function getLocation(d: ts.Diagnostic): ErrorLocationInfo {
   // lift from rollup code
   if (!d.start || !d.file) {
     return {};
@@ -89,7 +90,7 @@ export function getLocation(d: Diagnostic): ErrorLocationInfo {
 
       return `${lineNum}: ${tabsToSpaces(str)}`;
     })
-    .concat(`// ${path.resolve(d.file.fileName)}:${line}:${column + 1}`)
+    .concat(`${path.resolve(d.file.fileName)}:${line}:${column + 1}`)
     .join('\n');
 
   return {
