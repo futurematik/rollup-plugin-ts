@@ -1,3 +1,4 @@
+import path from 'path';
 import { PluginContext } from 'rollup';
 import { Diagnostic, DiagnosticCategory } from 'typescript';
 
@@ -88,7 +89,7 @@ export function getLocation(d: Diagnostic): ErrorLocationInfo {
 
       return `${lineNum}: ${tabsToSpaces(str)}`;
     })
-    //.concat(`// at ${d.file.fileName}:${line}:${column + 1}`)
+    .concat(`// ${path.resolve(d.file.fileName)}:${line}:${column + 1}`)
     .join('\n');
 
   return {

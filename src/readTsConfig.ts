@@ -75,6 +75,8 @@ export function readTsConfig(
     logDiagnostics(ctx, parsedConfig.errors);
   }
 
+  applyOverrides(parsedConfig);
+  checkConfig(ctx, filePath, parsedConfig);
   debug(`tsconfig`, parsedConfig);
 
   return {
@@ -86,3 +88,36 @@ export function readTsConfig(
 function mergeConfig(...config: {}[]): {} {
   return merge({}, ...config);
 }
+
+function applyOverrides(config: ts.ParsedCommandLine) {
+  config.options.noEmit = false;
+}
+
+function checkConfig(
+  ctx: PluginContext,
+  filePath: string | undefined,
+  config: ts.ParsedCommandLine,
+) {
+  let errors = false;
+
+  if (esmModuleKinds.indexOf(config.options.module!) < 0) {
+    errors = true;
+
+    ctx.warn({
+      message: `compilerOptions.module MUST be set to an ESM-compatible value`,
+      loc: { file: filePath, column: 0, line: 0 },
+    });
+  }
+  if (!config.options.importHelpers) {
+    ctx.warn({
+      message: `you should set compilerOptions.importHelpers to true`,
+      loc: { file: filePath, column: 0, line: 0 },
+    });
+  }
+
+  if (errors) {
+    ctx.error({ message: 'stopping due to errors', stack: '', frame: '' });
+  }
+}
+
+const esmModuleKinds = [ts.ModuleKind.ES2015, ts.ModuleKind.ESNext];
