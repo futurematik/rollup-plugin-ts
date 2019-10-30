@@ -36,7 +36,8 @@
   },
   "peerDependencies": {
     "rollup": "*",
-    "typescript": "^3.6.0"
+    "typescript": "^3.6.0",
+    "tslib": "*"
   },
   "devDependencies": {
     "@types/debug": "^4.1.5",
