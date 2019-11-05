@@ -4,7 +4,6 @@ import Debug from 'debug';
 const debug = Debug('rpts:snapshot');
 
 export interface FileInfo {
-  //dependencies: Dependencies;
   snapshot: ts.IScriptSnapshot;
   version: number;
 }
@@ -13,6 +12,7 @@ export interface SnapshotService {
   addFile(file: string, contents?: string): FileInfo;
   getFile(file: string): FileInfo;
   getFileNames(): string[];
+  hasFile(file: string): boolean;
 }
 
 export function createSnapshotService(
@@ -127,6 +127,13 @@ export function createSnapshotService(
   }
 
   /**
+   * Return true if the file has been loaded by the instance.
+   */
+  function hasFile(file: string): boolean {
+    return file in files;
+  }
+
+  /**
    * Get a list of all file names.
    */
   function getFileNames(): string[] {
@@ -137,5 +144,6 @@ export function createSnapshotService(
     addFile,
     getFile,
     getFileNames,
+    hasFile,
   };
 }

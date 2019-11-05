@@ -106,7 +106,8 @@ export default function rollupPluginTs(
       }
 
       // don't try resolve modules imported by files not processed by this plugin
-      if (!languageServiceHost.getScriptVersion(importer)) {
+      if (!snapshotService.hasFile(importer)) {
+        debug(`skipping resolve`);
         return;
       }
 
@@ -129,6 +130,7 @@ export default function rollupPluginTs(
       debug(`transform ${id}`);
 
       if (!filter(id)) {
+        debug(`skipping transform`);
         return;
       }
 
