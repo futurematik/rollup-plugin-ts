@@ -62,6 +62,10 @@ export default function rollupPluginTs(
       const cfg = readTsConfig(this, { cwd, ...pluginOptions.tsconfig });
       config = cfg.config;
 
+      if (cfg.configPath) {
+        this.addWatchFile(cfg.configPath);
+      }
+
       snapshotService = createSnapshotService(config);
       languageServiceHost = new LanguageServiceHost(
         snapshotService,
