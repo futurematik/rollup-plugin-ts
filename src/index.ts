@@ -151,17 +151,23 @@ export default function rollupPluginTs(
     },
 
     async generateBundle(this: PluginContext): Promise<void> {
+      debug(`generateBundle`);
       const extraFiles: [string, string][] = [];
 
       if (config.options.declaration) {
+        debug(`including declarations`);
         extraFiles.push(...emitService.getAllDeclarations());
 
         if (config.options.declarationMap) {
+          debug(`including declaration maps`);
           extraFiles.push(...emitService.getAllDeclarationMaps());
         }
       }
 
       for (const [outpath, output] of extraFiles) {
+        debug(`write file '${outpath}'`);
+        traceOutput(output);
+
         const outDir = path.dirname(outpath);
         await mkdirp(outDir);
         await writeFile(outpath, output);
