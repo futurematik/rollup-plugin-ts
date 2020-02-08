@@ -9,6 +9,7 @@ import {
   ResolveIdResult,
   SourceDescription,
 } from 'rollup';
+import normalizePath from 'normalize-path';
 import * as ts from 'typescript';
 import { LanguageServiceHost } from './LanguageServiceHost';
 import { readTsConfig } from './readTsConfig';
@@ -51,7 +52,8 @@ export default function rollupPluginTs(
   let languageService: ts.LanguageService;
   let emitService: EmitService;
   let tslibSource: string;
-  const filter = (id: string) => config.fileNames.includes(id);
+
+  const filter = (id: string): boolean => config.fileNames.includes(id);
 
   return {
     name: 'rollup-plugin-ts',
@@ -99,6 +101,8 @@ export default function rollupPluginTs(
       importee: string,
       importer: string | undefined,
     ): Promise<ResolveIdResult> {
+      importee = normalizePath(importee);
+      importer = importer && normalizePath(importer);
       debug(`resolveId '${importee}' (from '${importer}')`);
 
       if (importee === TSLIB) {
@@ -131,6 +135,7 @@ export default function rollupPluginTs(
       code: string,
       id: string,
     ): Promise<TransformResult> {
+      id = normalizePath(id);
       debug(`transform ${id}`);
 
       if (!filter(id)) {

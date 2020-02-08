@@ -89,18 +89,23 @@ function mergeConfig(...config: {}[]): {} {
   return merge({}, ...config);
 }
 
-function applyOverrides(config: ts.ParsedCommandLine) {
+function applyOverrides(config: ts.ParsedCommandLine): void {
   config.options.noEmit = false;
 }
+
+const esmModuleKinds = [ts.ModuleKind.ES2015, ts.ModuleKind.ESNext];
 
 function checkConfig(
   ctx: PluginContext,
   filePath: string | undefined,
   config: ts.ParsedCommandLine,
-) {
+): void {
   let errors = false;
 
-  if (esmModuleKinds.indexOf(config.options.module!) < 0) {
+  if (
+    !config.options.module ||
+    esmModuleKinds.indexOf(config.options.module) < 0
+  ) {
     errors = true;
 
     ctx.warn({
@@ -119,5 +124,3 @@ function checkConfig(
     ctx.error({ message: 'stopping due to errors', stack: '', frame: '' });
   }
 }
-
-const esmModuleKinds = [ts.ModuleKind.ES2015, ts.ModuleKind.ESNext];
