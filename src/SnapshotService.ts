@@ -1,6 +1,7 @@
 import ts from 'typescript';
-
+import normalizePath from 'normalize-path';
 import Debug from 'debug';
+
 const debug = Debug('rpts:snapshot');
 
 export interface FileInfo {
@@ -104,6 +105,7 @@ export function createSnapshotService(
    * Add a file to the snapshot service.
    */
   function addFile(file: string, contents?: string): FileInfo {
+    file = normalizePath(file);
     debug(`addFile ${file}`);
 
     const current = files[file];
@@ -123,6 +125,8 @@ export function createSnapshotService(
    * Get info about a file.
    */
   function getFile(file: string): FileInfo {
+    file = normalizePath(file);
+    debug(`getFile ${file}`);
     return files[file] || addFile(file);
   }
 
@@ -130,6 +134,8 @@ export function createSnapshotService(
    * Return true if the file has been loaded by the instance.
    */
   function hasFile(file: string): boolean {
+    file = normalizePath(file);
+    debug(`hasFile ${file}`);
     return file in files;
   }
 

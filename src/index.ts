@@ -47,13 +47,14 @@ export default function rollupPluginTs(
   const cwd = pluginOptions.cwd || process.cwd();
 
   let config: ts.ParsedCommandLine;
+  let fileSet: { [key: string]: boolean };
   let snapshotService: SnapshotService;
   let languageServiceHost: LanguageServiceHost;
   let languageService: ts.LanguageService;
   let emitService: EmitService;
   let tslibSource: string;
 
-  const filter = (id: string): boolean => config.fileNames.includes(id);
+  const filter = (id: string): boolean => normalizePath(id) in fileSet;
 
   return {
     name: 'rollup-plugin-ts',
@@ -63,6 +64,11 @@ export default function rollupPluginTs(
 
       const cfg = readTsConfig(this, { cwd, ...pluginOptions.tsconfig });
       config = cfg.config;
+
+      fileSet = cfg.config.fileNames.reduce(
+        (a, x) => ({ ...a, [normalizePath(x)]: true }),
+        {},
+      );
 
       if (cfg.configPath) {
         this.addWatchFile(cfg.configPath);
@@ -101,8 +107,6 @@ export default function rollupPluginTs(
       importee: string,
       importer: string | undefined,
     ): Promise<ResolveIdResult> {
-      importee = normalizePath(importee);
-      importer = importer && normalizePath(importer);
       debug(`resolveId '${importee}' (from '${importer}')`);
 
       if (importee === TSLIB) {
@@ -125,7 +129,10 @@ export default function rollupPluginTs(
         config.options,
       );
 
-      if (resolveResult && !resolveResult.endsWith('.d.ts')) {
+      const skip = !resolveResult || resolveResult.endsWith('.d.ts');
+      debug(`resolve result '${resolveResult}' (skip ${skip})`);
+
+      if (!skip) {
         return resolveResult;
       }
     },
@@ -140,6 +147,13 @@ export default function rollupPluginTs(
 
       if (!filter(id)) {
         debug(`skipping transform`);
+
+        if (id.endsWith('.ts')) {
+          this.warn(
+            `${id} looks like a typescript file but is skipped because it is not covered by a tsconfig`,
+          );
+        }
+
         return;
       }
 
